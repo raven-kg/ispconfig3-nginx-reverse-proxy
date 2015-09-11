@@ -1,39 +1,25 @@
 <tmpl_loop name='vhosts'>
 server {
-
-    ######################################################################
-    ## Server configuration
-    ######################################################################
-
     <tmpl_if name='ssl_enabled'>
-        listen <tmpl_if name='ip_address' op='!=' value='*'><tmpl_var name='ip_address'>:</tmpl_if>443 ssl spdy;
-        listen [<tmpl_if name='ipv6_enabled'><tmpl_var name='ipv6_address'></tmpl_else>::</tmpl_if>]:443 ssl spdy;
+    listen <tmpl_if name='ip_address' op='!=' value='*'><tmpl_var name='ip_address'>:</tmpl_if>443 ssl spdy;
+    listen [<tmpl_if name='ipv6_enabled'><tmpl_var name='ipv6_address'></tmpl_else>::</tmpl_if>]:443 ssl spdy;
     </tmpl_else>
-        listen <tmpl_if name='ip_address' op='!=' value='*'><tmpl_var name='ip_address'>:</tmpl_if>80;
-        listen [<tmpl_if name='ipv6_enabled'><tmpl_var name='ipv6_address'></tmpl_else>::</tmpl_if>]:80;
+    listen <tmpl_if name='ip_address' op='!=' value='*'><tmpl_var name='ip_address'>:</tmpl_if>80;
+    listen [<tmpl_if name='ipv6_enabled'><tmpl_var name='ipv6_address'></tmpl_else>::</tmpl_if>]:80;
     </tmpl_if>
+    access_log /var/log/ispconfig/httpd/<tmpl_var name='domain'>/access.log combined buffer=16k;
+#    access_log /var/log/ispconfig/httpd/<tmpl_var name='domain'>/access.log timed_combined;
+    error_log /var/log/ispconfig/httpd/<tmpl_var name='domain'>/error.log info;
 
-    server_name <tmpl_var name='domain'> <tmpl_if name='alias'><tmpl_var name='alias'></tmpl_if> <tmpl_if name='ip_address' op='!=' value='*'><tmpl_var name='ip_address'></tmpl_if> <tmpl_if name='ipv6_enabled'>[<tmpl_var name='ipv6_address'>]</tmpl_if>;
-
-    root <tmpl_var name='web_document_root_www'>;
-
-    # recommended but not manditory directives
-    # leave commented out unless you know what they are doing
-    #limit_req zone=ddos-cage burst=50;
-    #proxy_cache nginx_cache;
-
-    ######################################################################
-    ## Log configuration
-    ######################################################################
-
-    access_log off;
+    set $subdomain "";
+    set $home "<tmpl_var name='web_document_root_www'>";
+    <tmpl_if name='domain' op='==' value='domain.tld'>
+    include /etc/nginx/auto_subdomains.conf;
+    </tmpl_if>
+    root $home/$subdomain;
+    include /etc/nginx/includes/common_locations.conf;
 
     <tmpl_if name='ssl_enabled'>
-    ######################################################################
-    ## SSL configuration
-    ######################################################################
-
-    # recommended but not manditory directive
     # leave commented out unless you know what it is doing
     #more_set_headers 'Strict-Transport-Security: max-age=15768000';
 
@@ -41,9 +27,7 @@ server {
     ssl_certificate_key <tmpl_var name='web_document_root_ssl'>/<tmpl_var name='ssl_domain'>.key;
     </tmpl_if>
 
-    ######################################################################
-    ## Redirects configuration
-    ######################################################################
+    # Redirects configuration
 
     <tmpl_if name='http_to_https'>
         # Redirect http -> https
@@ -57,30 +41,33 @@ server {
         }
     </tmpl_if>
 
-    ######################################################################
-    ## Locations configuration
-    ######################################################################
-
-    # global locations
-    # recommended but not manditory directive
-    # leave commented out unless you know what it is doing
-    # include /etc/nginx/locations.d/*.conf;
-
-    # alias to local error docs
     <tmpl_if name='errordocs'>
         location ^~ /error { root /var/www; }
     </tmpl_if>
 
-    # default location
     location / {
-        proxy_pass http://apache2;
+        proxy_pass http://apache;
+        proxy_redirect http://apache/ /;
+        proxy_cache off;
+        include /etc/nginx/includes/proxy.conf;
     }
-
-    ######################################################################
-    ## Directives configuration
-    ######################################################################
+    location @fallback {
+        proxy_pass http://apache;
+        proxy_cache common;
+        add_header X-Cached $upstream_cache_status;
+        include /etc/nginx/includes/proxy.conf;
+    }
 
     <tmpl_var name='nginx_directives'>
 
+    # CP configuration
+    # If <tmpl_var name='domain'>/ispconfig is requested, redirect to the secure ISPConfig URL
+    location = /ispconfig { rewrite ^ <tmpl_var name='cp_base_url'>/ permanent; }
+
+    # If <tmpl_var name='domain'>/phpmyadmin is requested, redirect to the secure phpMyAdmin URL
+    location = /phpmyadmin { rewrite ^ <tmpl_var name='cp_base_url'>/phpmyadmin/ permanent;    }
+
+    # If <tmpl_var name='domain'>/webmail is requested, redirect to the secure RoundCube Webmail URL
+    location = /webmail {    rewrite ^ <tmpl_var name='cp_base_url'>/webmail/ permanent;    }
 }
 </tmpl_loop>

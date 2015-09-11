@@ -13,7 +13,7 @@
         <VirtualHost *:82>
 
             # Common
-            ServerAdmin admin@rackster-server.ch
+            ServerAdmin webmaster@<tmpl_var name='domain'>
             ServerName <tmpl_var name='domain'>
             <tmpl_if name='alias'>
                 <tmpl_var name='alias'>
@@ -40,6 +40,24 @@
                 </tmpl_if>
             </tmpl_if>
 
+           <tmpl_if name='domain' op='==' value='domain.tld'>
+              # Auto subdomains config for specific host
+              # check for mod_vhost_alias enabled
+              <tmpl_if name='php' op='==' value='suphp'>
+                    VirtualDocumentRoot <tmpl_var name='web_document_root'>/%1
+              </tmpl_else>
+                  <tmpl_if name='php' op='==' value='cgi'>
+                        VirtualDocumentRoot <tmpl_var name='web_document_root'>/%1
+                  </tmpl_else>
+                    <tmpl_if name='php' op='==' value='php-fpm'>
+                        VirtualDocumentRoot <tmpl_var name='web_document_root'>/%1
+                    </tmpl_else>
+                        VirtualDocumentRoot <tmpl_var name='web_document_root_www'>/%1
+                    </tmpl_if>
+                  </tmpl_if>
+             </tmpl_if>
+           </tmpl_if>
+            
             # Rewrites
             <tmpl_if name="rewrite_enabled">
                 RewriteEngine on
