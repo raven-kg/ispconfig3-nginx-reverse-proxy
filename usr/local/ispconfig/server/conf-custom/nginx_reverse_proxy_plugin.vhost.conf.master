@@ -9,7 +9,7 @@ server {
     </tmpl_if>
     access_log /var/log/ispconfig/httpd/<tmpl_var name='domain'>/access.log combined buffer=16k;
 #    access_log /var/log/ispconfig/httpd/<tmpl_var name='domain'>/access.log timed_combined;
-    error_log /var/log/ispconfig/httpd/<tmpl_var name='domain'>/error.log info;
+    error_log /var/log/ispconfig/httpd/<tmpl_var name='domain'>/error.log warn;
 
     set $subdomain "";
     set $home "<tmpl_var name='web_document_root_www'>";
@@ -17,7 +17,7 @@ server {
     include /etc/nginx/auto_subdomains.conf;
     </tmpl_if>
     root $home/$subdomain;
-    include /etc/nginx/includes/common_locations.conf;
+    include /etc/nginx/includes/locations-common.conf;
 
     <tmpl_if name='ssl_enabled'>
     # leave commented out unless you know what it is doing
@@ -26,6 +26,10 @@ server {
     ssl_certificate <tmpl_var name='web_document_root_ssl'>/<tmpl_var name='ssl_domain'>.nginx.crt;
     ssl_certificate_key <tmpl_var name='web_document_root_ssl'>/<tmpl_var name='ssl_domain'>.key;
     </tmpl_if>
+
+    set $conf_type generic;
+
+    <tmpl_var name='nginx_directives'>
 
     # Redirects configuration
 
@@ -45,20 +49,7 @@ server {
         location ^~ /error { root /var/www; }
     </tmpl_if>
 
-    location / {
-        proxy_pass http://apache;
-        proxy_redirect http://apache/ /;
-        proxy_cache off;
-        include /etc/nginx/includes/proxy.conf;
-    }
-    location @fallback {
-        proxy_pass http://apache;
-        proxy_cache common;
-        add_header X-Cached $upstream_cache_status;
-        include /etc/nginx/includes/proxy.conf;
-    }
-
-    <tmpl_var name='nginx_directives'>
+    include /etc/nginx/includes/locations-$conf_type.conf;
 
     # CP configuration
     # If <tmpl_var name='domain'>/ispconfig is requested, redirect to the secure ISPConfig URL
