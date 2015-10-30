@@ -260,7 +260,11 @@
                 AddType application/x-httpd-php .php .php3 .php4 .php5
                 php_admin_value sendmail_path "/usr/sbin/sendmail -t -i -fwebmaster@<tmpl_var name='domain'>"
                 php_admin_value upload_tmp_dir <tmpl_var name='document_root'>/tmp
-                php_admin_value session.save_path <tmpl_var name='document_root'>/tmp
+                #php_admin_value session.save_path <tmpl_var name='document_root'>/tmp
+                # Requires redis-server, redis and igbinary php extensions
+                php_admin_value session.save_handler redis
+		php_admin_value session.save_path "tcp://127.0.0.1:6379&prefix=<tmpl_var name='domain'>&timeout=2"
+                php_admin_value session.serialize_handler igbinary
                 # PHPIniDir <tmpl_var name='custom_php_ini_dir'>
 
                 <tmpl_if name='security_level' op='==' value='20'>
@@ -436,6 +440,11 @@
                 # WEBDAV BEGIN
                 # WEBDAV END
             </IfModule>
+
+            <IfModule mod_env.c>
+                SetEnvIf X-Forwarded-Proto https HTTPS=on
+            </IfModule>
+
 
             <tmpl_var name='apache_directives'>
         </VirtualHost>
